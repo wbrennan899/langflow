@@ -111,6 +111,8 @@ dependencies = [
     "ag2>=0.1.0",
     "scrapegraph-py>=1.10.2",
     "pydantic-ai>=0.0.19",
+    "twelvelabs>=0.4.4",
+    "python-magic>=0.4.27",
 ]
 
 [tool.uv.sources]

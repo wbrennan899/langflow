@@ -16,7 +16,7 @@ class VideoFileComponent(BaseFileComponent):
     icon = "file-text"
     name = "VideoFile"
 
-    VALID_EXTENSIONS = TEXT_FILE_TYPES
+    VALID_EXTENSIONS = ["mp4"]
 
     inputs = [
         *BaseFileComponent._base_inputs,
