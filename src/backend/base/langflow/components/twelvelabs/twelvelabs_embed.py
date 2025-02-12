@@ -1,6 +1,6 @@
 # from langflow.field_typing import Data
 from langflow.custom import Component
-from langflow.inputs import DataInput, SecretStrInput
+from langflow.inputs import DataInput, SecretStrInput, StrInput
 from langflow.io import Output
 from langflow.schema import Data
 from typing import List, Dict, Any
@@ -180,7 +180,8 @@ class TwelveLabsEmbed(Component):
             with open(video_path, 'rb') as video_file:
                 task = client.embed.task.create(
                     model_name="Marengo-retrieval-2.7",
-                    video_file=video_file
+                    video_file=video_file,
+                    video_embedding_scopes=["clip", "video"]
                 )
                 self.log(f"Task created with ID: {task.id}")
 
@@ -205,17 +206,24 @@ class TwelveLabsEmbed(Component):
                 
                 if video_segments:
                     embeddings['video_embedding'] = [float(x) for x in video_segments[0].embeddings_float]
-                    self.log(f"Generated video embedding (dim={len(embeddings['video_embedding'])})")
+                    # Log truncated video embedding
+                    self.log(f"Video embedding (first 5 values): {embeddings['video_embedding'][:5]}")
+                    self.log(f"Video embedding dimension: {len(embeddings['video_embedding'])}")
                 
                 if clip_segments:
                     embeddings['clip_embeddings'] = [
                         [float(x) for x in segment.embeddings_float]
                         for segment in clip_segments
                     ]
-                    self.log(f"Generated {len(embeddings['clip_embeddings'])} clip embeddings")
+                    # Log truncated clip embeddings
+                    self.log(f"Number of clip embeddings: {len(embeddings['clip_embeddings'])}")
+                    if embeddings['clip_embeddings']:
+                        self.log(f"First clip embedding (first 5 values): {embeddings['clip_embeddings'][0][:5]}")
+                        self.log(f"Clip embedding dimension: {len(embeddings['clip_embeddings'][0])}")
                 
                 status_msg = f"Generated video embedding and {len(embeddings['clip_embeddings'])} clip embeddings"
-                self.status = status_msg
+                # self.status = status_msg
+                self.status = json.dumps(embeddings)
                 self.log(status_msg)
                 return Data(value=embeddings)
             else:
