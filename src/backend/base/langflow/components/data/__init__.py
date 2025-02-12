@@ -12,6 +12,7 @@ __all__ = [
     "CSVToDataComponent",
     "DirectoryComponent",
     "FileComponent",
+    "VideoFileComponent",
     "JSONToDataComponent",
     "SQLExecutorComponent",
     "URLComponent",
