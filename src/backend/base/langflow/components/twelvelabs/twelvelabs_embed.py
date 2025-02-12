@@ -27,7 +27,8 @@ class TwelveLabsEmbed(Component):
         DataInput(
             name="videodata", 
             display_name="Video Data", 
-            info="Video Data"
+            info="Video Data",
+            is_list=True
         ),
         SecretStrInput(
             name="api_key",
@@ -141,32 +142,31 @@ class TwelveLabsEmbed(Component):
                 self.log("No video data provided", "ERROR")
                 return Data(value={"error": "No video data provided"})
 
+            if not isinstance(self.videodata, list):
+                self.log("Video data must be a list", "ERROR")
+                return Data(value={"error": "Video data must be a list"})
+
+            if len(self.videodata) != 1:
+                self.log("Exactly one video data object required", "ERROR")
+                return Data(value={"error": "Exactly one video data object required"})
+
+            video_data = self.videodata[0]
+            
+            if not hasattr(video_data, 'data') or 'path' not in video_data.data:
+                self.log("No video path found in data", "ERROR")
+                return Data(value={"error": "No video path found in data"})
+
+            video_path = video_data.data['path']
+            if not os.path.exists(video_path):
+                self.log(f"Video file not found at path: {video_path}", "ERROR")
+                return Data(value={"error": f"Video file not found at path: {video_path}"})
+
             if not self.api_key:
                 self.log("No API key provided", "ERROR")
                 return Data(value={"error": "No API key provided"})
 
-            # Extract video bytes from the Data object
-            video_bytes = self.videodata.data.get("bytes")
-            if not video_bytes:
-                self.log("No video bytes found in data", "ERROR")
-                return Data(value={"error": "No video bytes found in data"})
-
             self.log(f"Initializing client with API key: {self.api_key[:4]}...")
             client = TwelveLabs(api_key=self.api_key)
-
-            self.log(f"Received video content of size: {len(video_bytes)} bytes")
-
-            # Create temporary file for video
-            self.log("Creating temporary file for video...")
-            temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False, mode='wb')
-            temp_file.write(video_bytes)
-            temp_file.close()
-            video_path = temp_file.name
-
-            # Debug the file content and type
-            with open(video_path, 'rb') as f:
-                first_bytes = f.read(16)
-                self.log(f"First 16 bytes of file: {first_bytes.hex()}")
 
             # Use ffprobe for validation first
             is_valid, error_message = self.validate_video_file(video_path)
