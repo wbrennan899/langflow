@@ -1,6 +1,8 @@
 import warnings
 from collections.abc import AsyncIterator, Iterator
 from typing import Any, TypeAlias, get_args
+import base64
+import os
 
 from pandas import DataFrame
 from pydantic import Field, field_validator
@@ -467,17 +469,109 @@ class MultiselectInput(BaseInputMixin, ListableInputMixin, DropDownMixin, Metada
         return v
 
 
-class FileInput(BaseInputMixin, ListableInputMixin, FileMixin, MetadataTraceMixin):
-    """Represents a file field.
-
-    This class represents a file input and provides functionality for handling file values.
-    It inherits from the `BaseInputMixin`, `ListableInputMixin`, and `FileMixin` classes.
-
-    Attributes:
-        field_type (SerializableFieldTypes): The field type of the input. Defaults to FieldTypes.FILE.
-    """
-
+class FileInput(BaseInputMixin, FileMixin, MetadataTraceMixin, ListableInputMixin):
     field_type: SerializableFieldTypes = FieldTypes.FILE
+
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, v: Any, info):
+        """Validates and processes the file input."""
+        if v is None:
+            print("FileInput received None value")
+            return None
+
+        # Enhanced debug logging
+        print(f"FileInput received: type={type(v)}")
+        if isinstance(v, str):
+            print(f"String length: {len(v)}")
+            if len(v) > 0:
+                print(f"First few chars: {v[:50]}")
+                print(f"String starts with data:? {v.startswith('data:')}")
+                print(f"String is base64? {cls._looks_like_base64(v)}")
+        if isinstance(v, dict):
+            print(f"Dict keys: {list(v.keys())}")
+            print(f"Dict values types: {[(k, type(val)) for k, val in v.items()]}")
+        if isinstance(v, bytes):
+            print(f"Bytes length: {len(v)}")
+        if isinstance(v, list):
+            print(f"List length: {len(v)}")
+
+        # Handle list input when is_list=True
+        if isinstance(v, list):
+            if not v:
+                return v
+            return [cls._validate_single_value(item) for item in v]
+
+        return cls._validate_single_value(v)
+
+    @staticmethod
+    def _looks_like_base64(s: str) -> bool:
+        """Check if a string looks like base64."""
+        try:
+            # Check if string contains only valid base64 characters
+            import re
+            if not re.match('^[A-Za-z0-9+/]*={0,2}$', s):
+                return False
+            # Try to decode
+            base64.b64decode(s)
+            return True
+        except Exception:
+            return False
+
+    @classmethod
+    def _validate_single_value(cls, v: Any) -> bytes:
+        """Process a single file value."""
+        print(f"Validating single value of type: {type(v)}")
+        
+        if isinstance(v, bytes):
+            print(f"Got bytes of length: {len(v)}")
+            return v
+
+        if isinstance(v, str):
+            print(f"Processing string of length: {len(v)}")
+            
+            # If it's a data URL
+            if v.startswith('data:'):
+                print("Found data URL")
+                try:
+                    header, content = v.split('base64,', 1)
+                    print(f"Data URL header: {header}")
+                    print(f"Base64 content length: {len(content)}")
+                    return base64.b64decode(content)
+                except Exception as e:
+                    print(f"Data URL processing error: {e}")
+                    raise ValueError(f"Invalid data URL: {str(e)}")
+
+            # If it's a file path
+            if os.path.exists(v):
+                print(f"Found file at path: {v}")
+                with open(v, 'rb') as f:
+                    return f.read()
+
+            # Try base64 decode
+            if cls._looks_like_base64(v):
+                print("Attempting base64 decode")
+                try:
+                    return base64.b64decode(v)
+                except Exception as e:
+                    print(f"Base64 decode failed: {e}")
+            else:
+                print("String is not base64")
+
+            # Last resort - treat as raw text
+            print("Treating as raw text")
+            return v.encode('utf-8')
+
+        if isinstance(v, dict):
+            print(f"Processing dictionary with keys: {list(v.keys())}")
+            for key in ['content', 'data', 'file']:
+                if key in v:
+                    print(f"Found {key} in dict")
+                    return cls._validate_single_value(v[key])
+
+        msg = f"Invalid file input type: {type(v)}"
+        print(msg)
+        raise ValueError(msg)
 
 
 class LinkInput(BaseInputMixin, LinkMixin):
