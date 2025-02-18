@@ -1,20 +1,14 @@
 # from langflow.field_typing import Data
 from langflow.custom import Component
-from langflow.inputs import DataInput, SecretStrInput, StrInput
+from langflow.inputs import DataInput, SecretStrInput, StrInput, MessageInput
 from langflow.io import Output
 from langflow.schema import Data
-from typing import List, Dict, Any
-import numpy as np
-from loguru import logger
+from typing import Dict, Any
 from twelvelabs import TwelveLabs
-import tempfile
 import time
 import os
-import mimetypes
 import subprocess
 import json
-import magic  # for better file type detection
-import base64
 
 class TwelveLabsEmbed(Component):
     display_name = "Video to Embeddings"
@@ -34,6 +28,12 @@ class TwelveLabsEmbed(Component):
             name="api_key",
             display_name="Twelve Labs API Key",
             info="Enter your Twelve Labs API Key."
+        ),
+        MessageInput(
+            name="message",
+            display_name="Message",
+            info="Message to search for in the video",
+            required=False,
         )
     ]
 
